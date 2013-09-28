@@ -5,6 +5,10 @@
     
     ga.utility = ga.utility || {} ;
  
+    // Class that will display txt, starting to fade at fadeStartOffset,
+    // fading during a fadeDuration time.
+    //  color, ctx : ...
+    // ! works only in a html5 CanvasContext2d !
 	ga.utility.FadingText = function (fadeStartOffset, fadeDuration, txt, color, ctx ) { 
 		          this.fadeStart = Date.now() + fadeStartOffset ; 
 		          this.fadeEnd   = this.fadeStart + fadeDuration   ; 
@@ -24,6 +28,6 @@
    	              txt = txt || this.txt ;
    	              this.ctx.fillText(this.txt,x,y)  ;
    	              if (savedAlpha != -1 )  this.ctx.globalAlpha = savedAlpha ;
-     }
+    };
      
 })() ;

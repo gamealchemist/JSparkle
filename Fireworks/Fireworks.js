@@ -20,18 +20,18 @@ ga.particles.Fireworks = function( x, y, speed ) {
     this.speed = 0      ;  
 	this.colorIndex = 0 ;  
     
-    this.birthTime = 0  ;      
-    this.deathTime = 0  ;    
-    this.fadeTime  = 0  ;  	
+    this.birthTime = 0  ;     // birth is handled 
+    this.deathTime = 0  ;     // death is handled
+    this.fadeTime  = 0  ;  	  // fade pattern
     
     this.fadeDuration = 0 ;
     this.fadeRatio    = 1 ;
 };
 
 ga.particles.Fireworks.prototype = {
-  dt           : 0          ,
-  currentTime  : 0          ,
-  drawContext    : null     ,
+  dt            : 0        , // current time-step value (ms). reserved for the engine
+  currentTime   : 0        , // current time (ms). reserved for the engine
+  drawContext   : null     , // current drawing context. reserved for the engine
 
   gravity      : +0.5/1000 ,
   maxSpeedNorm : 0.5        ,
@@ -47,7 +47,7 @@ ga.particles.Fireworks.prototype = {
         this.vy   +=  this.gravity*dt ;
         this.x    += this.vx*dt  ;      this.y  +=  this.vy*dt;
         // compute fade ratio if we entered the fading phase.
-        if (this.currentTime > this.fadeTime) { this.fadeRatio = (this.deathTime - this.currentTime) / this.fadeDuration }
+        if (this.currentTime > this.fadeTime) { this.fadeRatio = (this.deathTime - this.currentTime) / this.fadeDuration ; }
     },
     
     // draws a line joining current position to previous, using 
@@ -66,7 +66,7 @@ ga.particles.Fireworks.prototype = {
 
    // spawn the particles centered on CenterX, CenterY, with disp as dispertion.
    // particles are spawn in all directions, and have birth/death/fade time related to fireworksLifeTime.
-   spawn : function (particleLoopBuffer, firstIndex, lastIndex, currentTime, centerX, centerY, disp) {
+   spawn : function (particleLoopBuffer, firstIndex, cnt, currentTime, centerX, centerY, disp) {
 	   var index    = firstIndex            ;
 	   var length   = particleLoopBuffer.length ;
 	   var particle = null                  ;
@@ -81,7 +81,7 @@ ga.particles.Fireworks.prototype = {
        this.previousBaseColor = baseColorIndex;
        var colorVariance = 0 |  0.1 *numberOfCachedColors * ( 0.3 + 0.7 * Math.random() )   ;
        
-	   while (true) {	
+	   while (cnt--) {	
 			particle = particleLoopBuffer[index];
 			// -- initialise particle here
 	
@@ -106,7 +106,6 @@ ga.particles.Fireworks.prototype = {
 	        // random color within the currently used range.
             particle.colorIndex =( 0 | ( baseColorIndex +  Math.random() * colorVariance    )) % numberOfCachedColors ;
 			// -- end initialize
-			if ( index == lastIndex) { break }
 			index++;  if (index == length ) { index = 0 }; 
 		}
 	 }

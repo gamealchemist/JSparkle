@@ -24,12 +24,12 @@ window.ga = window.ga || {};
 
 //                                         JSparkle
 // Constructor of a particle engine.
-// ParticleCtor  : constructor function that has update, draw, and spawn defined on its prototype
-//                  preDraw and postDraw are optionnal
-// maxParicleCnt : maximum count of particle - that you might change with resize -
-// getTime : optionnal clock used by the engine. Use your game time. fallback is Performance.now or Date.now. 
+//      ParticleCtor  : constructor function that has update, draw, and spawn defined on its prototype
+//                  preDraw and postDraw are optionnal. See an example at the end of the file.
+//      maxParicleCnt : maximum count of particle - that you might change with resize -
+//      getTime : optionnal clock used by the engine. Use your game time. fallback is Performance.now or Date.now. 
 ga.JSparkle = function(ParticleCtor, maxParticleCnt , _getTime ) {
-	  if (!(maxParticleCnt>=1)) { throw('JSparkle ctor error : Particle Count must be >=1') }
+	  if (!(maxParticleCnt>=1)) { throw('JSparkle ctor error : Particle Count must be >=1'); }
 	  // create the particle loop buffer
 	  this.particleLoopBuffer=new Array(maxParticleCnt);
 	  for (var i=0; i < maxParticleCnt; i++) {
@@ -43,16 +43,15 @@ ga.JSparkle = function(ParticleCtor, maxParticleCnt , _getTime ) {
 	  this._ParticleCtor       = ParticleCtor ;  
 	  this._particleProto      = ParticleCtor.prototype;	  
 	  this._batchSpawnCallback = ParticleCtor.prototype.spawn ;	   
-      // ...
-	  this._preDraw      = ParticleCtor.prototype.preDraw  ;
-	  this._postDraw     = ParticleCtor.prototype.postDraw ;
-	  // time
+      // re/post Draw of the engine for the demo loop (see startRunLoop)
+	  this._preDraw      = null  ;
+	  this._postDraw     = null ;
+	  // fallback time handling
 	  this.getTime = _getTime || window.performance.now.bind(performance) ;
 	  this.dt      = 1  ;
-	  this.dtAvg  = 16 ;	
+	  this.dtAvg   = 16 ;	
 	  this.lastUpdateTime = 0  ;
-	  // small optimisation : use the right _batchUpdate 
-	  // (do not test for death/birth within update if properties not set in object)  
+      // handling death / birth ? 
 	  var firstParticle = this.particleLoopBuffer[0] ;	
 	  this._handleDeath  =  (firstParticle.deathTime !== undefined);
 	  this._handleBirth  =  (firstParticle.birthTime !== undefined);	  
@@ -74,7 +73,7 @@ ga.JSparkle = function(ParticleCtor, maxParticleCnt , _getTime ) {
 	  this._boundRunLoop = null  	 ;
 	  this._runLoopTime  = 0		 ;
 	  // this._screenFps   = 0       ; unused yet
-}
+};
 
 ga.JSparkle.prototype = {
 	// call spawn to spawn cnt particles. 
@@ -82,29 +81,28 @@ ga.JSparkle.prototype = {
 	// Does nothing if no particles available. 
 	// call spawn with your arguments, which will be provided to the particle.spawn callback
 	// JSparkle will callback the spawn method of the particle,
-	//       with (particleLoopBuffer, firstIndex, lastIndex + given arguments) as arguments.
+	//       with (particleLoopBuffer, firstIndex, count + given arguments) as arguments.
 	//       and the particle prototype as context ('this')
 	// returns the number of actually spawned particles.
 	spawn : function spawn (cnt /*, arg1, arg2, ... */ ) {		
-		 // return if 0 particule requested or no more room
    		 var length = this.particleLoopBuffer.length;
-   		 if ( !(cnt > 0) || (this.currentCount == length ))  return 0 ;
+		 // return if 0 particule requested or no more room
+		 if ( !(cnt > 0) || (this.currentCount == length ))  return 0 ;
 		 // if not enough part. available, take maximum count
          if ( cnt > length - this.currentCount ) cnt = length - this.currentCount ;
-         var  batchStartIndex   = ( this.lastParticleIndex + 1   ) % length ;
-		 this.lastParticleIndex = ( this.lastParticleIndex + cnt ) % length ;
+         var  batchStartIndex   = ( this.lastParticleIndex + 1   ); if (batchStartIndex==length) batchStartIndex=0;
+		 this.lastParticleIndex = ( this.lastParticleIndex + cnt ); if (this.lastParticleIndex>=length) this.lastParticleIndex-=length;
 		 this.currentCount     += cnt;
 		 if (arguments.length > 1) {
-			// if arguments where given, build up the arguments array
-			var allArgs = [this.particleLoopBuffer, batchStartIndex, this.lastParticleIndex, this.getTime() ];
-			var argInd = allArgs.length;
+			// if additionnal arguments where provided, build up the arguments array
+			var allArgs = [this.particleLoopBuffer, batchStartIndex, cnt, this.getTime() ];
 			// add custom arguments
-			for (var ii=1; ii<arguments.length; ii++, argInd++) { allArgs[argInd]=arguments[ii]; }
+			for (var ii=1; ii<arguments.length; ii++) { allArgs.push(arguments[ii]); }
 			// call the callback
-			this._batchSpawnCallback.apply(this._particleProto, allArgs)		 	
+			this._batchSpawnCallback.apply(this._particleProto, allArgs);		 	
 		 } else {
-		 	// no arguments : std call to the callback
-     		this._batchSpawnCallback.call(this._particleProto, this.particleLoopBuffer, batchStartIndex, this.lastParticleIndex, this.getTime());
+		 	// no additionnal arguments : std call to the callback
+     		this._batchSpawnCallback.call(this._particleProto, this.particleLoopBuffer, batchStartIndex, cnt, this.getTime());
 		 }
 		 return cnt;
 	},
@@ -117,7 +115,6 @@ ga.JSparkle.prototype = {
 	getCurrentCount : function getCurrentCount () {
 		 return this.currentCount;
 	},
-
 	// removes all spawned particles (does not affect the loop buffer size)
 	clearSpawned : function clearSpawned () {
 		this.currentCount       =  0  ;
@@ -128,16 +125,15 @@ ga.JSparkle.prototype = {
 	// will auto-spawn particleCount particles with the optionnal spawn arguments,
 	// every timeInterval milliseconds.
 	// The autospawn is performed in the engine update.
-	// if a spawn argument is a function, it will get evaluated before the spawn, with the particle 
+	// if any spawn argument is a function, it will get evaluated before the spawn, with the particle 
 	// prototype as context and no arguments.
 	// returns an id that you can use to remove the autoSpawn.
-	autoSpawn : function autoSpawn (timeInterval, particleCount /*, spArg1, spArg2, ... */  ) {
-		// build emit controller function for this auto-spawn
+	autoSpawn : function autoSpawn (timeInterval, particleCount /*, x, y, color, ... */  ) {
 		var nextEmitTime = this.getTime() + timeInterval ;
-		
+		// build emit controller function for this auto-spawn		
 		var asEmitController = isFunction(particleCount) ?  
 									function (currentTime) {
-										if (currentTime < nextEmitTime ) { return 0 }
+										if (currentTime < nextEmitTime ) { return 0; }
 										nextEmitTime = currentTime + timeInterval ;
 										return particleCount() ; 
 									} :
@@ -145,7 +141,7 @@ ga.JSparkle.prototype = {
 										if (currentTime < nextEmitTime ) { return 0 }
 										nextEmitTime = currentTime + timeInterval ;
 										return particleCount ; 
-									}
+									};
 		if (arguments.length == 2) { 
 			   // just call emit with this function if no additionnal parameters
 			      return this.emit(asEmitController); }
@@ -157,15 +153,20 @@ ga.JSparkle.prototype = {
 			}			
     }, 
     // creates an emitter
-    // every engine update, the emitControler will be called with the currentTime as argument.
-    // if the emitController returns a >0 number, there will be a spawn of this
-    //   number of particles with the provided arguments.
+    // emitControler is a function controlling the particle count, called with no context
+    // with the current time as argument.
+    // if the emitController(currTime) returns :
+    //                - >0 number, there will be a spawn of this
+    //                            number of particles with the provided arguments.
+    //                - 0  nothing happens
+    //                - -1 the emitter will be removed
+    // you might add additionnal spawn arguments that will be sent to your particfle's spawn.
 	// if a spawn argument is a function, it will get evaluated before the spawn, with the particle 
 	// prototype as context and no arguments.
 	// returns an id that you can use to remove the emiter.
-	emit : function emit (emitControler /*, spArg1, spArg2, ...*/ ) {
+	emit : function emit (emitControler /*, x, y, color,  ...*/ ) {
 		var emitArguments = (arguments.length >1 ) ? Array.prototype.slice.call(arguments) : null;
-		if (emitArguments) { emitArguments[0 ] = 0 }
+		if (emitArguments) { emitArguments[0] = 0 ; }
 		var containsFunction = false;
 		for (var i=1; i<arguments.length; i++) { if (isFunction(arguments[i])) { containsFunction = true; break; } }
 		this.emiters.push( { emitController   : emitControler, 
@@ -175,7 +176,7 @@ ga.JSparkle.prototype = {
   		var	currId = this._nextEmiterId++;
   	    return 	currId;
 	}, 
-	// cancel the autoSpawn having the provided id
+	// removes the autoSpawn having the provided id
 	cancelAutoSpawn: function (autoSpawnId) {
 		this.removeEmiter(autoSpawnId);
 	} ,
@@ -191,9 +192,9 @@ ga.JSparkle.prototype = {
 		this.emiters.length--;
 		return true;
 	},
-	// set wether the engine should displays the statistics for this engine at point (x,y) with scale   
-	// the draw is done after all draws are done  (preDraw, main draw, postDraw)
-	// (x, y, scale) defaults to (0, 0, 1)
+	// set wether the engine should displays the statistics for this engine at point (x,y) with scale. 
+	// (x, y, scale) defaults to (0, 0, 1).
+	// the draw is done after all draws are done  ( particle's preDraw / draw of all / postDraw)
 	setStatisticsDisplay : function setStatisticsDisplay (shouldDisplay, x, y, scale) {		
 		  this._displayStats    	= shouldDisplay      ;
 		  this._displayStatsX   	= x	|| 0   		     ;
@@ -201,9 +202,10 @@ ga.JSparkle.prototype = {
 		  this._displayStatsScale   = scale || 1  		 ;
 	},
 	// updates all particles.
-	// compute time, remove the first dead particles, then update all born and undead particles.
-	// dt and currentTime are optionnal. If undefined, JSparkle will use the timer
-	// given in the constructor or the fallback timer.
+	// dt and currentTime are optionnal. If undefined, JSparkle will use its
+	// internal timer (see constructor).
+	// removes dead particle if death is handled, and do not update yet
+	// unborn ones if birth is handled.
 	update : function update (dt, currentTime ) {
     	// most basic time handling if no time is provided	 		 			
 		if (!(dt && currentTime )) {
@@ -215,100 +217,95 @@ ga.JSparkle.prototype = {
 		     		 dt               = ( currentTime - this.lastUpdateTime ) ;					 	 	
 		 	 }	
     		 this.lastUpdateTime = currentTime;		 
-		}
-		 
+		}		 
 		if (this._displayStats) { this.dt = dt ; } 	
-		 
 		 // handle emitters if any
-		 if (this.emiters.length) this._handleEmit(currentTime);		 
-	     
-	     // exit if no particles alive
+		 if (this.emiters.length) this._handleEmit(currentTime);		 	     
+	     // exit if no particles in buffer
 	     if (!this.currentCount)  return ;
+	    
 	    // -->> Update !
 	    var particleLoopBuffer  = this.particleLoopBuffer       ;
 		var index     		    = this.firstParticleIndex  ;
-		var lastIndex 		    = this.lastParticleIndex   ; 
+		var count 		    	= this.currentCount   ; 
 		var length 		 	    = particleLoopBuffer.length     ;	
 		var thisParticle        = null                     ;
 		var deadCount 		    = 0                        ;
 		 	      	
  		// remove first dead particles if handling death
  		if (this._handleDeath) { 
- 						 while (true) {
-											thisParticle = particleLoopBuffer[index];
+ 						 while (count--) {
 											// stop when alive particle found
-										 	if ( currentTime < thisParticle.deathTime ) { break }
+										 	if ( currentTime < particleLoopBuffer[index].deathTime ) { break; }
 							                deadCount++;
-							     			if (index == lastIndex ) { break }
-										 	index++ ;  if ( index == length)  { index = 0 }	 	    
+							     		 	index++ ;  if ( index == length)  { index = 0 ; }	 	    
 									  	 }
 									  	 this.currentCount -= deadCount;
 										 // there might be no more alive particles now
 									  	 if (this.currentCount == 0) {   this.firstParticleIndex = 0 ;  
 									  	 	                             this.lastParticleIndex = -1; 
-									  	 	                             return }		
+									  	 	                             return; }		
 										 this.firstParticleIndex = index ;
+										 count 		    	= this.currentCount   ; 
 								 }
  		// setup dt and currentTime on particle proto
  		this._particleProto.dt          = dt;
- 		this._particleProto.currentTime = currentTime ;
+		this._particleProto.currentTime = currentTime ;
 
  		// call update on all particles
  		if (this._handleDeath) { 
-			  while (true) {
+ 			  // case when we handle birth / death
+			  while (count--) {
 					thisParticle = particleLoopBuffer[index];		
 					if (!(currentTime >= thisParticle.deathTime )  &&    	// skip if dead or unborn
 								     !(currentTime <  thisParticle.birthTime ) ) { 	 	
 							// --------- update thisParticle  --------
-							thisParticle.update()
+							thisParticle.update();
 					    }
-					if (index == lastIndex ) break;
 					index++;  if (index == length )  index = 0;			
 			  }	 
 		  } else {
 		  	  // simpler loop if we're not handling birth / death
-			  while (true) {
+			  while (count--) {
 			 	    // --------- update thisParticle  --------
 					particleLoopBuffer[index].update();
-					if (index == lastIndex )  break ;
 					index++;  if (index == length )  index = 0 ;
 			     }		  
 		 }
 	},
 	// draws all particles on provided context.
 	// (only undead and born ones)
-	// currentTime is optionnal, draw use engine time provided on constructor or its fallback is used if need be.
+	// currentTime is optionnal, If undefined, JSparkle will use its internal timer (see constructor).
 	draw : function draw (drawContext, currentTime) {
-        if (!this.currentCount) { return }
+        // exit if no particles in buffer
+        if (!this.currentCount) return;
 		var particleLoopBuffer = this.particleLoopBuffer  ;    			
     	var index  = this.firstParticleIndex ;
-		var lastIndex = this.lastParticleIndex ; 
+		var count = this.currentCount ; 
     	var length = particleLoopBuffer.length  ;	
 		var thisParticle  = null ;
 		var currentTime   = currentTime || this.getTime();
-
 		// setup the drawing context on the particle prototype
-		this._particleProto.drawContext = drawContext;
-		
-		if (this._preDraw)               this._preDraw(drawContext);
+		this._particleProto.drawContext = drawContext;		
+		// perform the pre-draw operation of the particle if available
 		if (this._particleProto.preDraw) this._particleProto.preDraw();
-
-		while (true) {
+        // draw all particles
+		while (count--) {
 			thisParticle = particleLoopBuffer[index];
-			// skip if dead or unborn
+			// draw if born and not dead
 			if (!(currentTime >= thisParticle.deathTime )  &&  
 			     !(currentTime <  thisParticle.birthTime ) ) { 				     				    
 			 	    // --------- draw thisParticle  --------
  					   thisParticle.draw();
 			}	
-        	if (index == lastIndex )  break;
 			index++;  if (index == length ) index = 0;
 		}
-		
-        if (this._particleProto.postDraw) this._particleProto.postDraw();		
-		if (this._postDraw)               this._postDraw (drawContext);
-		
-		if (this._displayStats) 	{ this.displayStats(drawContext, this._displayStatsX, this._displayStatsY, this._displayStatsScale ) } 
+		// perform the post-draw operation of the particle if available		
+        if (this._particleProto.postDraw) this._particleProto.postDraw();	
+    	// display engine statistics if required
+	   if (this._displayStats) 	{ 
+		    this.displayStats(drawContext, this._displayStatsX, this._displayStatsY, this._displayStatsScale ); 
+		} 	
 	},
 	// resize the buffer of particle to the newCount size.
 	// try to preserve existing particles if current count allows it.
@@ -380,18 +377,18 @@ ga.JSparkle.prototype = {
 
 	},
 	// starts a draw / update loop to test the engine.
-	// the optionnal preDraw / postDraw are performed before / after the particle pre/post draw.
+	// the optionnal preDraw / postDraw are performed before / after drawing all particles.
 	// typically, for a demo you will want to clear the screen in the run loop predraw.
 	// This runLoop uses its own timer, protected against high fps screen, frame miss and tab out 
 	startRunLoop : function startRunLoop(drawContext, _runLoopPreDraw, _runLoopPostDraw) {
-		if (!drawContext) { throw ('JSparkle error : startRunLoop : drawContext cannot be null.')}
+		if (!drawContext) { throw ('JSparkle error : startRunLoop : drawContext cannot be null.'); }
 		this.drawContext   = drawContext		      ;
-		this._lastRealTime = performance.now() - 16      ;
+		this._lastRealTime = performance.now() - 16   ;
         this._boundRunLoop = this._runLoop.bind(this) ;
         this._preDraw      = _runLoopPreDraw		  ;
         this._postDraw     = _runLoopPostDraw  		  ;
         this._runLoopTime  = 1 						  ;
-        this.getTime       = (function() { return this._runLoopTime }).bind(this);
+        this.getTime       = (function() { return this._runLoopTime; }).bind(this);
         requestAnimationFrame(this._boundRunLoop) 	  ;
 	},
 	// stops the run loop.
@@ -407,8 +404,11 @@ ga.JSparkle.prototype = {
 			if (interval > 100) { 
 				                    interval = 16 ;  }  // in case window was tabbed out.
 			this._lastRealTime = now ;
-			// draw  ( =) preDraw + draw all particles + postDraw + stat draw )
+			// draw  ( =) preDraw + draw all particles + postDraw )
+			if (this._preDraw)               this._preDraw(this.drawContext);
 			this.draw (this.drawContext, this._runLoopTime);
+			if (this._postDraw)               this._postDraw (this.drawContext);
+
 			// update
 			this.update ( interval, this._runLoopTime ) ;
 			this._runLoopTime += interval 				;			
@@ -418,6 +418,7 @@ ga.JSparkle.prototype = {
 	// display the current statistics of the engine.
 	// (x,y,scale) defaults to (0,0,1)
 	// you can call setStatisticsDisplay so the engine draws automatically the stats
+	// !! displaying the stats affects performances !!
 	displayStats : function displayStats (ctx, x, y, scale)  {
 		x=x||0 ;      y=y||0;  scale = scale || 1;
 		ctx.save();
@@ -438,11 +439,11 @@ ga.JSparkle.prototype = {
 	            var oldUpdate = this.update;
 	  			this.update = function() {var st = performance.now(); 
 	  									  oldUpdate.apply(this, arguments); 
-	  									  this._updateDuration = performance.now() - st ;}
+	  									  this._updateDuration = performance.now() - st ;} ;
 	  			var oldDraw = this.draw;
 	  			this.draw   = function() { var st = performance.now(); 
 	  									  oldDraw.apply(this, arguments); 
-	  									  this._drawDuration = performance.now() - st ;}
+	  									  this._drawDuration = performance.now() - st ;} ;
 	  			this.measureUpdateDraw = true ;
 		}
 		this._drawDurationAvg     =   this._drawDurationAvg   * 0.95 +  this._drawDuration * 0.05   ;
@@ -467,7 +468,7 @@ ga.JSparkle.prototype = {
 		ctx.fillRect (4,128, 114, 56);
 		ctx.globalAlpha = 1;	
 		ctx.fillStyle= '#fff';
-		var length = this.particleLoopBuffer.length
+		var length = this.particleLoopBuffer.length ;
 		ctx.fillText ( this.currentCount + ' / ' + length , 24, 148);
         ctx.fillStyle = '#4B4';
 		ctx.fillRect ( 10, 160, 100, 8 );
@@ -512,7 +513,7 @@ ga.JSparkle.prototype = {
 		 if (killedCount) {  emiters.removeNull();   }
 	}, 
 	// measure the actual refresh rate of the display.  
-	// will callback 'MeasureDoneCallback' with the fps as argument.
+	// will callback 'MeasureDoneCallback' with the actual fps as argument.
 	// untested / unused yet.
 	_measureScreenFps : function _measureScreenFps (MeasureDoneCallback) {
 		var startMeasureTime = 0;
@@ -522,7 +523,7 @@ ga.JSparkle.prototype = {
 									 return; }
 		    var screenFps = performance.now() - startMeasureTime;
 		    MeasureDoneCallback(screenFps);
-		}
+		};
 		requestAnimationFrame(measure); 
 	}
 };
@@ -535,56 +536,92 @@ ga.JSparkle.prototype = {
 //
 // ------------------------------------------------------------
 
-typicalParticleCtor = function() {
-    // initialize here to defaut values any property you will later use.
+TypicalParticleCtor = function() {
+	// takes no argument - used to fill in the buffer on engine start -
+    // initialize here any property with default values.
+    // you will later change those values within the particle's spawn method.
 	this.x  = 0 ;      this.y  = 0;
-	this.vx = 0 ;      this.vy = 0
+	this.vx = 0 ;      this.vy = 0 ;
+	this.colorIndex = 0;
     //...
-    // if you want to handle birth and/or death setup birthTime / deathTime
+    
+    // !!!! if you want to handle birth or death,                  !!!!
+    /// !!! then setup birthTime and deathTime in the constructor  !!!!
     this.birthTime= 0;   this.deathTime = 0;
 };
 
-typicalParticleCtor.prototype = {
-	dt            : 0        ,
-    currentTime   : 0        ,
-    drawContext   : null     , 
-  
-	gravity   : 9.8 ,
-	someValue : 1   ,  // ...  values used for all particles
+TypicalParticleCtor.prototype = {
+	dt            : 0        , // current time-step value (ms). reserved for the engine
+    currentTime   : 0        , // current time (ms). reserved for the engine
+    drawContext   : null     , // current drawing context. reserved for the engine
+    
+	gravity   : 9.8 ,  // example 1 of value used for all particles
+	colors : ['#FEF', '#FED', '#EDE', '#EEF']   ,  // example2
 
-	// update 'this' using this.dt and this.currentTime
+	// update. Instance method. You can use here this.dt and this.currentTime
+    // if birth / death is handled, called only if particle is born and not dead.
 	update : function () {
 		this.x += this.vx * this.dt ;
+		this.y += this.vy * this.dt ;
 		// ...
 	},
 
-	// draw 'this' on this.drawContext
+	// draw. Instance method. You can use here this.drawContext -and also this.dt and this.currentTime-
+    // if birth / death is handled, called only if particle is born and not dead.
 	draw : function () {
 		this.drawContext.fillRect(this.x, this.y, 1, 1);
 	},
 	
+	// spawn. class method.
 	// JSparkle calls this callback when a spawn is requested on the particle engine.
-	//    the first arguments are particleLoopBuffer, firstIndex, lastIndex, currentTime
-	//    the following arguments are the arguments provided to the spawn
+	//    the first arguments are particleLoopBuffer, firstIndex, count, currentTime
+	//    the following arguments are the arguments provided to the engine's spawn method.
 	//     expl :  partEngine.spawn(100, x, y, color)  will callback spawn(partArray, 0, 99, 43213, x, y, color)
-	//    Rq : spawn is a static method : the 'this' is set to the particle prototype.
-	spawn : function (particleLoopBuffer, firstIndex, lastIndex, currentTime /*, yourArg1, yourArg2, ...  */) {
+	//    Rq : spawn is a static method : the 'this' is set to the particle's prototype.
+	spawn : function (particleLoopBuffer, firstIndex, count, currentTime  /* optionnal args here */, x, y, colorIndex /*... */) {
 		var index = firstIndex;
 		var length = particleLoopBuffer.length;
 		var particle = null;
-		while ( true ) {
+		while ( count-- ) {
 			particle = particleLoopBuffer[index];
-			// -- initialise particle here 
-			
-			particle.x = yourArg1 ; /*+ ... ;    particle.y = ... */
+
+			//  --  start of particle initialisation
+			particle.x = x + 10 * Math.random(); 
+			particle.y = y + 10 * Math.random(); /*+ ... ;    particle.y = ... */
 			// you might use prototype properties. expl :  this.gravity;
+			particle.color = this.colors[colorIndex] ;			
+			//  --  end of particle initialisation
 			
-			//  --  end of init
-	        if ( index == lastIndex) { break }
 			index++;		if (index == length ) { index = 0 }; 
 		  }	
-   }	
+  },
+  // preDraw. Optionnal class method.. Operation performed before all draw.
+  // You can use here this.drawContext -and also this.dt and this.currentTime-
+  preDraw : function() {
+  	    // save g c o
+     	this._previous_globalCompositeOperation = this.drawContext.globalCompositeOperation;
+        // set it to lighter
+    	this.drawContext.globalCompositeOperation = 'lighter';
+  },
+  // postDraw. Optionnal class method. Operation performed before all draw.
+  // You can use here this.drawContext -and also this.dt and this.currentTime-
+  postDraw : function() {
+  	// restore previous g c o
+  	this.drawContext.globalCompositeOperation = this._previous_globalCompositeOperation;
+  },
+  //
+  _previous_globalCompositeOperation : null 	
 };
+
+/*
+ // Use example. Commented since we do not want to create an engine.
+ 
+ var myEngine = new JSparkle(TypicalParticleCtor, 500);
+ 
+ myEngine.spawn(40, 200, 200);
+  
+*/
+
 
 // ------------------------------------------------------------
 //
@@ -592,7 +629,7 @@ typicalParticleCtor.prototype = {
 //
 // ------------------------------------------------------------
 
-function isFunction(e) { return (typeof e == 'function') }	
+function isFunction(e) { return (typeof e == 'function') ; }	
 
 
 // little helper function to set values on a function protoype easily
@@ -638,7 +675,7 @@ var  w=window,    foundRequestAnimationFrame  =    w.requestAnimationFrame ||
 window.requestAnimationFrame  = foundRequestAnimationFrame ;
 
 // performance.now polyfill
-if (!window.performance) { window.performance={} };
+if (!window.performance) { window.performance={} ; };
 var p=window.performance;
 window.performance.now        =     p.now || p.webkitNow || p.msNow ||
    				          p.mozNow || Date.now || function() { return +new Date() } ;

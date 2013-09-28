@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>Particles</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+	</buildSpec>
+	<natures>
+		<nature>com.aptana.projects.webnature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>Lib/canvasLib.js</name>
+			<type>1</type>
+			<location>/Users/vincentpiel/Documents/AptanaWorkspace/Library/canvasLib.js</location>
+		</link>
+	</linkedResources>
+</projectDescription>

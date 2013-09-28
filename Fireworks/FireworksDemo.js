@@ -18,9 +18,9 @@ window.onload = function() {
 	var fwSparkle = new ga.JSparkle(ga.particles.Fireworks, fireParticlesCount, null );
 	
 	// setup auto-spawn
-	var randCount = function() { return 0 | (90 + Math.random() * 20) };
-	var XPos = function() { return ScreenCssWidth *(0.05 + 0.90*Math.random()) };
-	var YPos = function() { return ScreenCssHeight*(0.05 + 0.60*Math.random()) };
+	var randCount = function() { return 0 | (90 + Math.random() * 20); };
+	var XPos = function() { return ScreenCssWidth *(0.05 + 0.90*Math.random()) ; };
+	var YPos = function() { return ScreenCssHeight*(0.05 + 0.60*Math.random()) ; };
 		
 		
     fwSparkle.autoSpawn ( 100, randCount, XPos, YPos, 5 );

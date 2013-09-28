@@ -17,11 +17,11 @@ ga.particles.Bubbles = function( ) {
 };
 
 ga.particles.Bubbles.prototype = {
-  dt           : 0          ,
-  currentTime  : 0          ,
-  drawContext  : null       ,
+  dt            : 0        , // current time-step value (ms). reserved for the engine
+  currentTime   : 0        , // current time (ms). reserved for the engine
+  drawContext   : null     , // current drawing context. reserved for the engine
   
-  bubbleImage  : null       ,
+  bubbleImage  : null       , // image used for the bubbles.
   minSize      : 8          ,
   sizeRange    : 8          ,
   
@@ -42,15 +42,15 @@ ga.particles.Bubbles.prototype = {
    	    this.drawContext.drawImage(this.bubbleImage, Math.round(this.x), Math.round(this.y),  this.size, this.size);	
    },
 
-   spawn : function (particleLoopBuffer, firstIndex, lastIndex, currentTime) {
+   spawn : function (particleLoopBuffer, firstIndex, cnt, currentTime) {
 	   var index    = firstIndex            ;
 	   var length   = particleLoopBuffer.length ;
 	   var particle = null                  ;
 	   
        var randomAngle = 0 ;
-       var thisSpeed   = 0
+       var thisSpeed   = 0 ;
            
-	   while (true) {	
+	   while (cnt--) {	
 			particle = particleLoopBuffer[index];
 			// -- initialise particle here
 	
@@ -66,7 +66,6 @@ ga.particles.Bubbles.prototype = {
 
 			particle.timeScale =  0.5 + 2 * Math.random() ;
 			// -- end initialize
-			if ( index == lastIndex) { break }
 			index++;  if (index == length ) { index = 0 }; 
 		}
 	 },

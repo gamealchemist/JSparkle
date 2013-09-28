@@ -1,11 +1,12 @@
 
-var mustBeLoadedCount = 2;
+var mustBeLoadedCount = 1;
 function launchWhenloaded() { if (!--mustBeLoadedCount) { launchDemo() };	};
 
 // load bubble image
 var bubbleImage =new Image();
 bubbleImage.onload = launchWhenloaded; 
 bubbleImage.src = 'Bubble.png';
+mustBeLoadedCount++;
 
 // wait window load
 window.onload = launchWhenloaded;
