@@ -34,7 +34,7 @@ function launchDemo() {
 				   						   spaceSpeed    : spaceSpeed,      // unit is screen per second
 				   			          }) ;
 	// create the engine	
-	var starSparkle = new ga.JSparkle(ga.particles.Star, starCount, null );
+	var starSparkle = new ga.JSparkle(ga.particles.Star, starCount, ctx, null );
 	// fill the engine
 	starSparkle.spawn(starCount);
 
@@ -44,7 +44,7 @@ function launchDemo() {
 		                                };
 
 	// start the particle engine run loop
-   starSparkle.startRunLoop ( ctx, runLoopPreDraw);
+   starSparkle.startRunLoop (  runLoopPreDraw);
    
 	// *** listen to some mouse events  (right click, mouse move)
 	var maxSpeed = 5;

@@ -33,7 +33,7 @@ function launchDemo() {
 		
 	// **** Setup the particle engine			
 																		           
-	var FireSparkle = new ga.JSparkle(ga.particles.Fire, fireCircleCount, null );
+	var FireSparkle = new ga.JSparkle(ga.particles.Fire, fireCircleCount, ctx ,null );
     		
 	FireSparkle.autoSpawn ( 100, 40 , ScreenCssWidth/2, ScreenCssHeight );
 
@@ -54,7 +54,7 @@ function launchDemo() {
     		                                    myTextDrawer.draw(100, 20);   
     		                                 };
 	
-	FireSparkle.startRunLoop(ctx, FirePreDraw );
+	FireSparkle.startRunLoop(FirePreDraw );
 	
 	// *** listen to some mouse events  	
 	var displayInfo = false;
@@ -62,10 +62,13 @@ function launchDemo() {
                                      					displayInfo = !displayInfo; 
                                      					FireSparkle.setStatisticsDisplay(displayInfo); } 
                                          		  }  	) ;
-	addEventListener('mousemove', function (e) { //if (e.button == 0) { 
-                                     					FireSparkle.spawn(10, e.clientX, e.clientY); } 
-                                         		  //} 
-                                         		   	) ;                                         		  
+	//fireCanvas.addEventListener('mousemove',handleMouseMove) ;
+	 fireCanvas.onmousemove = handleMouseMove;
+	 function handleMouseMove(e) {   		FireSparkle.spawn(20, e.clientX, e.clientY);  
+		                                    e.stopPropagation();
+		                                    e.preventDefault();
+		                                       };
+		                                                                                		  
     addEventListener('contextmenu', function (e) {  e.preventDefault();     e.stopPropagation(); }, false)  ;                                  				   
                                       				
 };

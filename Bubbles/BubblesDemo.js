@@ -38,7 +38,7 @@ function launchDemo() {
 		
 	// **** Setup the particle engine			
 																		           
-	var bubbleSparkle = new ga.JSparkle(ga.particles.Bubbles, bubblesCount, null );
+	var bubbleSparkle = new ga.JSparkle(ga.particles.Bubbles, bubblesCount, ctx ,null );
 	
     bubbleSparkle.spawn (bubblesCount);
  
@@ -46,14 +46,15 @@ function launchDemo() {
        //  preDraw == erase canvas with low opacity for blur  + draw fading text
         var myTextDrawer = new ga.utility.FadingText(4000, 2000, 'Bubbles Demo of JSpakle.   Add ?#number# to the url use a different bubble count (ex: ?500).    Use right click to display stats. ', '#FFF', ctx);
 
-    	var bubblePreDraw  = function (ctx) {   ctx.globalAlpha  = 0.3 ;
+    	var bubblePreDraw  = function (ctx) {   
+    		                                    ctx.globalAlpha  = 0.3 ;
     		                                    ctx.fillStyle = '#000';
     		                                    ctx.fillRect(0, 0, ctx.width, ctx.height) ;
     		                                    ctx.globalAlpha  = 1.0 ;  
     		                                    myTextDrawer.draw(100, 20);   
     		                                 };
 	
-	bubbleSparkle.startRunLoop(ctx, bubblePreDraw );
+	bubbleSparkle.startRunLoop(bubblePreDraw );
 	
 	// *** listen to some mouse events  	
 	var displayInfo = false;

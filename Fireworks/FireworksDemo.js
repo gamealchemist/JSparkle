@@ -15,10 +15,10 @@ window.onload = function() {
 	var ctx  		    = starCanvas.getContext('2d');
 		
 	// **** Setup the particle engine																					           
-	var fwSparkle = new ga.JSparkle(ga.particles.Fireworks, fireParticlesCount, null );
+	var fwSparkle = new ga.JSparkle(ga.particles.Fireworks, fireParticlesCount, ctx, null );
 	
 	// setup auto-spawn
-	var randCount = function() { return 0 | (90 + Math.random() * 20); };
+	var randCount = function() { return 0 | (190 + Math.random() * 20); };
 	var XPos = function() { return ScreenCssWidth *(0.05 + 0.90*Math.random()) ; };
 	var YPos = function() { return ScreenCssHeight*(0.05 + 0.60*Math.random()) ; };
 		
@@ -36,7 +36,7 @@ window.onload = function() {
 							              ctx.lineWidth = 2; 		
 							              myTextDrawer.draw(100,20);						};
 	
-	fwSparkle.startRunLoop(ctx, fwPreDraw );
+	fwSparkle.startRunLoop( fwPreDraw );
 
 	
 	// *** listen to some mouse events  	
